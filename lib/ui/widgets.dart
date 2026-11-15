@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
-import '../data/app_data.dart';
-import '../data/models.dart';
 import 'lucide_icons.dart';
 import 'theme.dart';
 
