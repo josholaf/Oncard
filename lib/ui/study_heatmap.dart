@@ -248,8 +248,9 @@ class StudyHeatmap extends StatelessWidget {
             ],
           ),
           SizedBox(height: compact ? 10 : 14),
-          // Legend
+          // Legend, bottom right like GitHub
           Row(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Text(
                 'Less',
@@ -274,6 +275,7 @@ class StudyHeatmap extends StatelessWidget {
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
+              const SizedBox(width: 2),
               Text(
                 'More',
                 style: theme.textTheme.bodySmall?.copyWith(
