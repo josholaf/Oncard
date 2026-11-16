@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'lucide_icons.dart';
 
-/// Opens the searchable Lucide icon library. Returns the chosen icon as
-/// 'lucide:<name>', optionally suffixed with '@#RRGGBB' when a color was
-/// picked, or null when dismissed without a choice.
+/// Opens a simplified icon chooser tuned for decks.
+/// Returns 'lucide:<name>' (optionally with '@#RRGGBB') or null if dismissed.
 Future<String?> showEmojiPickerSheet(BuildContext context,
     {String current = 'lucide:book-open'}) {
   return showModalBottomSheet<String>(
@@ -37,6 +36,40 @@ Color _hexColor(String hex) {
   return Color(value ?? 0xFFFFFFFF);
 }
 
+/// Curated quick picks so the user rarely needs the full library.
+const List<String> _quickPicks = <String>[
+  'book-open',
+  'brain',
+  'layers',
+  'sparkles',
+  'rocket',
+  'star',
+  'heart',
+  'zap',
+  'flask-conical',
+  'stethoscope',
+  'pill',
+  'atom',
+  'code',
+  'languages',
+  'globe',
+  'palette',
+  'music',
+  'dumbbell',
+  'calculator',
+  'landmark',
+  'cpu',
+  'database',
+  'lightbulb',
+  'compass',
+  'trophy',
+  'gem',
+  'flower',
+  'leaf',
+  'sun',
+  'moon',
+];
+
 class _IconLibrarySheet extends StatefulWidget {
   final String current;
   const _IconLibrarySheet({required this.current});
@@ -50,6 +83,7 @@ class _IconLibrarySheetState extends State<_IconLibrarySheet> {
   String _selectedName = '';
   String? _color;
   List<String> _matches = const <String>[];
+  bool _showAll = false;
 
   @override
   void initState() {
@@ -79,11 +113,17 @@ class _IconLibrarySheetState extends State<_IconLibrarySheet> {
   void _filter() {
     final q = _search.text.trim().toLowerCase();
     setState(() {
-      _matches = q.isEmpty
-          ? kLucideIcons.keys.toList(growable: false)
-          : kLucideIcons.keys
-              .where((name) => name.replaceAll('-', ' ').contains(q))
-              .toList(growable: false);
+      if (q.isEmpty) {
+        _matches = _showAll
+            ? kLucideIcons.keys.toList(growable: false)
+            : _quickPicks
+                .where((n) => kLucideIcons.containsKey(n))
+                .toList(growable: false);
+      } else {
+        _matches = kLucideIcons.keys
+            .where((name) => name.replaceAll('-', ' ').contains(q))
+            .toList(growable: false);
+      }
     });
   }
 
@@ -96,15 +136,17 @@ class _IconLibrarySheetState extends State<_IconLibrarySheet> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final searching = _search.text.trim().isNotEmpty;
+
     return SafeArea(
       child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.7,
+        height: MediaQuery.of(context).size.height * 0.72,
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
               child: Text(
-                'Icon library',
+                'Choose deck icon',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
@@ -114,7 +156,7 @@ class _IconLibrarySheetState extends State<_IconLibrarySheet> {
                 controller: _search,
                 autofocus: false,
                 decoration: InputDecoration(
-                  hintText: 'Search icons, e.g. book, rocket, brain',
+                  hintText: 'Search (book, brain, rocket…)',
                   prefixIcon: const Icon(Icons.search_rounded),
                   isDense: true,
                   filled: true,
@@ -126,32 +168,68 @@ class _IconLibrarySheetState extends State<_IconLibrarySheet> {
                 ),
               ),
             ),
+
+            // Mode toggle when not searching
+            if (!searching)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Row(
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Quick picks'),
+                      selected: !_showAll,
+                      onSelected: (_) {
+                        setState(() {
+                          _showAll = false;
+                          _filter();
+                        });
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    ChoiceChip(
+                      label: const Text('All icons'),
+                      selected: _showAll,
+                      onSelected: (_) {
+                        setState(() {
+                          _showAll = true;
+                          _filter();
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
             Expanded(
               child: _matches.isEmpty
-                  ? const Center(
-                      child: Text('Nothing matches that search.'))
+                  ? const Center(child: Text('Nothing matches that search.'))
                   : GridView.builder(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 6, childAspectRatio: 1),
+                              crossAxisCount: 5, childAspectRatio: 1),
                       itemCount: _matches.length,
                       itemBuilder: (context, i) {
                         final name = _matches[i];
                         final selected = name == _selectedName;
                         return InkWell(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                           onTap: () => setState(() => _selectedName = name),
                           child: Container(
                             margin: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              color: selected ? cs.primaryContainer : null,
+                              borderRadius: BorderRadius.circular(14),
+                              color: selected
+                                  ? cs.primaryContainer
+                                  : cs.surfaceContainerHigh.withOpacity(0.5),
+                              border: selected
+                                  ? Border.all(color: cs.primary, width: 2)
+                                  : null,
                             ),
                             child: Center(
                               child: LucideIcon(
                                   name: name,
-                                  size: 26,
+                                  size: 28,
                                   color: _color == null
                                       ? cs.onSurface
                                       : _hexColor(_color!)),
@@ -161,6 +239,8 @@ class _IconLibrarySheetState extends State<_IconLibrarySheet> {
                       },
                     ),
             ),
+
+            // Color row
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
               child: SizedBox(
@@ -192,13 +272,14 @@ class _IconLibrarySheetState extends State<_IconLibrarySheet> {
                 ),
               ),
             ),
+
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
               child: SizedBox(
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _selectedName.isEmpty ? null : _done,
-                  child: const Text('Done'),
+                  child: const Text('Use this icon'),
                 ),
               ),
             ),
