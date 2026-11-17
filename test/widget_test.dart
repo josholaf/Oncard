@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:oncard/data/app_data.dart';
 import 'package:oncard/data/models.dart';
 import 'package:oncard/main.dart';
+import 'package:oncard/screens/card_editor_screen.dart';
 import 'package:oncard/screens/study_screen.dart';
 
 void main() {
@@ -141,6 +142,80 @@ void main() {
     await tester.tap(find.text('Review skipped (2)'));
     await tester.pumpAndSettle();
     expect(find.text('Question 1'), findsOneWidget);
+  });
+
+
+  testWidgets('attachments appear on their configured card sides',
+      (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final data = AppData(prefs);
+    final card = Flashcard(
+      id: 'placed-attachments',
+      question: 'Front prompt',
+      answer: 'Back answer',
+      imagePath: '/tmp/missing-card-image.png',
+      imageSide: CardSide.back,
+      audioPath: '/tmp/card-audio.mp3',
+      audioSide: CardSide.front,
+    );
+    final deck = Deck(id: 'placement-deck', name: 'Placement', cards: [card]);
+    data.decks = [deck];
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AppData>.value(
+        value: data,
+        child: MaterialApp(
+          home: StudyScreen(deck: deck, mode: StudyMode.flip),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Front prompt'), findsOneWidget);
+    expect(find.text('Play audio'), findsOneWidget);
+    expect(find.text('Image not available'), findsNothing);
+
+    await tester.tap(find.text('Show answer'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Back answer'), findsOneWidget);
+    expect(find.text('Image not available'), findsOneWidget);
+    expect(find.text('Play audio'), findsNothing);
+  });
+
+  testWidgets('card editor saves image placement from the compact dropdown',
+      (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final data = AppData(prefs);
+    final card = Flashcard(
+      id: 'editable-image',
+      question: 'Question',
+      answer: 'Answer',
+      imagePath: '/tmp/missing-card-image.png',
+    );
+    final deck = Deck(id: 'editor-deck', name: 'Editor', cards: [card]);
+    data.decks = [deck];
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AppData>.value(
+        value: data,
+        child: MaterialApp(
+          home: CardEditorScreen(deckId: deck.id, card: card),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(DropdownButton<CardSide>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Back').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+
+    expect(card.imageSide, CardSide.back);
   });
 
 }
