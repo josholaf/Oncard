@@ -37,9 +37,11 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
   late final TextEditingController _tags =
       TextEditingController(text: widget.card?.tags.join(', ') ?? '');
   String? _imagePath;
+  CardSide _imageSide = CardSide.front;
   late List<double> _occlusions =
       List<double>.from(widget.card?.occlusions ?? const <double>[]);
   String? _audioPath;
+  CardSide _audioSide = CardSide.back;
   String? _lastAnswerText;
 
   bool get _isEditing => widget.card != null;
@@ -48,7 +50,9 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
   void initState() {
     super.initState();
     _imagePath = widget.card?.imagePath;
+    _imageSide = widget.card?.imageSide ?? CardSide.front;
     _audioPath = widget.card?.audioPath;
+    _audioSide = widget.card?.audioSide ?? CardSide.back;
     _lastAnswerText = _answer.text;
     _answer.addListener(_autoContinueList);
   }
@@ -240,6 +244,169 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
       .where((t) => t.isNotEmpty)
       .toList();
 
+  String _sideLabel(CardSide side) =>
+      side == CardSide.front ? 'Front' : 'Back';
+
+  Widget _sidePicker(CardSide value, ValueChanged<CardSide> onChanged) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.only(left: 8, right: 4),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<CardSide>(
+          value: value,
+          isDense: true,
+          borderRadius: BorderRadius.circular(12),
+          icon: const Icon(Icons.expand_more_rounded, size: 18),
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: cs.onSurface,
+              ),
+          items: CardSide.values
+              .map((side) => DropdownMenuItem<CardSide>(
+                    value: side,
+                    child: Text(_sideLabel(side)),
+                  ))
+              .toList(),
+          onChanged: (side) {
+            if (side != null) onChanged(side);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _imageAttachmentTile() {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.file(
+              File(_imagePath!),
+              width: 64,
+              height: 64,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 64,
+                height: 64,
+                color: cs.surfaceContainerHighest,
+                child: const Icon(Icons.image_not_supported_outlined),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Image attached',
+                    style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Show on',
+                        style: Theme.of(context).textTheme.labelSmall),
+                    const SizedBox(width: 6),
+                    if (_occlusions.isEmpty)
+                      _sidePicker(
+                        _imageSide,
+                        (side) => setState(() => _imageSide = side),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text('Both sides',
+                            style: Theme.of(context).textTheme.labelLarge),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Remove image',
+            onPressed: () => setState(() {
+              _imagePath = null;
+              _occlusions = <double>[];
+            }),
+            icon: const Icon(Icons.close_rounded),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _audioAttachmentTile() {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: cs.secondaryContainer,
+            foregroundColor: cs.onSecondaryContainer,
+            child: const Icon(Icons.graphic_eq_rounded),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Audio attached',
+                    style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Show on',
+                        style: Theme.of(context).textTheme.labelSmall),
+                    const SizedBox(width: 6),
+                    _sidePicker(
+                      _audioSide,
+                      (side) => setState(() => _audioSide = side),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Play audio',
+            onPressed: () => CardAudio.play(_audioPath!),
+            icon: const Icon(Icons.play_arrow_rounded),
+          ),
+          IconButton(
+            tooltip: 'Remove audio',
+            onPressed: () => setState(() => _audioPath = null),
+            icon: const Icon(Icons.close_rounded),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _save() {
     if (!_formKey.currentState!.validate()) return;
     final question = _question.text.trim();
@@ -256,8 +423,10 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
                 : answer,
             note: note,
             imagePath: _imagePath,
-                audioPath: _audioPath,
-                occlusions: _occlusions,
+            audioPath: _audioPath,
+            imageSide: _imageSide,
+            audioSide: _audioSide,
+            occlusions: _occlusions,
             tags: tags,
           );
     } else {
@@ -276,7 +445,9 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
                   note: note,
                   tags: tags,
                   imagePath: _imagePath,
-                audioPath: _audioPath,
+                  audioPath: _audioPath,
+                  imageSide: _imageSide,
+                  audioSide: _audioSide,
                   occlusions: _occlusions,
                   clozeIndex: group,
                 ),
@@ -295,6 +466,8 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
                 tags: tags,
                 imagePath: _imagePath,
                 audioPath: _audioPath,
+                imageSide: _imageSide,
+                audioSide: _audioSide,
                 occlusions: _occlusions,
               ),
             );
@@ -370,7 +543,9 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
             Text(hasCloze ? Cloze.blanked(_question.text, group) : _question.text,
                 style: Theme.of(ctx).textTheme.titleMedium),
             const SizedBox(height: 12),
-            if (_imagePath != null)
+            if (_imagePath != null) ...[
+              Text('Image · ${_sideLabel(_imageSide)}',
+                  style: Theme.of(ctx).textTheme.labelMedium),
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Image.file(File(_imagePath!),
@@ -379,7 +554,10 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => const SizedBox.shrink()),
               ),
-            if (_audioPath != null)
+            ],
+            if (_audioPath != null) ...[
+              Text('Audio · ${_sideLabel(_audioSide)}',
+                  style: Theme.of(ctx).textTheme.labelMedium),
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: OutlinedButton.icon(
@@ -388,6 +566,7 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
                   label: const Text('Play audio'),
                 ),
               ),
+            ],
             const Divider(height: 24),
             RichAnswer(
               text: answer,
@@ -516,52 +695,11 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Image attachment.
-            if (_imagePath != null)
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.file(File(_imagePath!),
-                        height: 160,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                              height: 80,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
-                              child: const Center(
-                                  child: Text('Image not available')),
-                            )),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: CircleAvatar(
-                      radius: 16,
-                      backgroundColor:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
-                      child: IconButton(
-                        iconSize: 16,
-                        icon: const Icon(Icons.close_rounded),
-                        onPressed: () =>
-                            setState(() => _imagePath = null),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            else
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _attachMenu,
-                  icon: const Icon(Icons.attach_file_rounded),
-                  label: const Text('Add attachment'),
-                ),
-              ),
-            if (_imagePath != null)
+            Text('Attachments',
+                style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            if (_imagePath != null) ...[
+              _imageAttachmentTile(),
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
@@ -572,36 +710,24 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
                       : '${_occlusions.length ~/ 4} region(s) hidden'),
                 ),
               ),
-            if (_imagePath != null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: _attachMenu,
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Add another attachment'),
-                ),
-              ),
-            if (_audioPath != null) ...[
-              Row(
-                children: [
-                  const Icon(Icons.graphic_eq_rounded, size: 20),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text('Audio attached'),
-                  ),
-                  IconButton(
-                    tooltip: 'Play',
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    onPressed: () => CardAudio.play(_audioPath!),
-                  ),
-                  IconButton(
-                    tooltip: 'Remove audio',
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => setState(() => _audioPath = null),
-                  ),
-                ],
-              ),
+              const SizedBox(height: 8),
             ],
+            if (_audioPath != null) ...[
+              _audioAttachmentTile(),
+              const SizedBox(height: 8),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _attachMenu,
+                icon: const Icon(Icons.attach_file_rounded),
+                label: Text(_imagePath == null && _audioPath == null
+                    ? 'Add attachment'
+                    : (_imagePath != null && _audioPath != null
+                        ? 'Replace attachment'
+                        : 'Add another attachment')),
+              ),
+            ),
             const SizedBox(height: 8),
 
             Row(
