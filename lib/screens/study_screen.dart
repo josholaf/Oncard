@@ -61,7 +61,7 @@ class _StudyScreenState extends State<StudyScreen>
   final List<Grade> _grades = <Grade>[];
   final List<Flashcard> _skippedCards = <Flashcard>[];
   int _index = 0;
-  int _skippedCount = 0;
+  int _skippedTotal = 0;
   bool _showBack = false;
   bool _reviewingSkipped = false;
   bool _audioPlaying = false;
@@ -133,7 +133,7 @@ class _StudyScreenState extends State<StudyScreen>
     _flip.value = 0;
     setState(() {
       _skippedCards.add(_queue[_index]);
-      _skippedCount += 1;
+      _skippedTotal += 1;
       _showBack = false;
       _index += 1;
     });
@@ -454,7 +454,7 @@ class _StudyScreenState extends State<StudyScreen>
     final cs = Theme.of(context).colorScheme;
     final hintParts = <String>['$_remaining left'];
     if (_againCount > 0) hintParts.add('$_againCount again');
-    if (_skippedCount > 0) hintParts.add('$_skippedCount skipped');
+    if (_skippedCards.isNotEmpty) hintParts.add('${_skippedCards.length} skipped');
     if (_reviewingSkipped) hintParts.insert(0, 'Skipped review');
     return Scaffold(
       appBar: AppBar(
@@ -519,18 +519,23 @@ class _StudyScreenState extends State<StudyScreen>
                   style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 8),
               Text('$_total cards reviewed · $accuracy% correct'),
-              if (_skippedCount > 0) ...[
+              if (_skippedTotal > 0) ...[
                 const SizedBox(height: 8),
                 Text(
-                  '$_skippedCount skipped · not graded',
+                  '$_skippedTotal skips during this session',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
-                if (_skippedCards.isNotEmpty)
-                  Text(
-                    'Skipped cards remain due for review.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                    textAlign: TextAlign.center,
-                  ),
+              ],
+              if (_skippedCards.isNotEmpty) ...[
+                Text(
+                  '${_skippedCards.length} still skipped · not graded',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                Text(
+                  'Skipped cards remain due for review.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
               ],
               const SizedBox(height: 24),
               if (_skippedCards.isNotEmpty) ...[
