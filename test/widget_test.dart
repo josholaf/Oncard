@@ -174,7 +174,7 @@ void main() {
 
     expect(find.text('Front prompt'), findsOneWidget);
     expect(find.text('Play audio'), findsOneWidget);
-    expect(find.text('Image not available'), findsNothing);
+    expect(find.byType(Image), findsNothing);
 
     await tester.tap(find.text('Show answer'));
     await tester.pumpAndSettle();
