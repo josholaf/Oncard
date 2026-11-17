@@ -132,7 +132,7 @@ void main() {
             widget is GestureDetector && widget.onHorizontalDragEnd != null),
         const Offset(160, 0));
     await tester.pumpAndSettle();
-    expect(find.text('2 skipped · not graded'), findsOneWidget);
+    expect(find.text('2 still skipped · not graded'), findsOneWidget);
     expect(find.text('Review skipped (2)'), findsOneWidget);
     expect(first.due, 0);
     expect(second.due, 0);
