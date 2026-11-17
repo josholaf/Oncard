@@ -197,12 +197,33 @@ class _StudyScreenState extends State<StudyScreen>
     setState(() => _showBack = !_showBack);
   }
 
+  Widget _answerContent(BuildContext context, Flashcard card) {
+    if (Cloze.hasCloze(card.question)) {
+      return Text.rich(
+        TextSpan(
+          style: Theme.of(context).textTheme.headlineSmall,
+          children: Cloze.revealSpans(
+            card.question,
+            card.clozeIndex,
+            Theme.of(context).textTheme.headlineSmall ?? const TextStyle(),
+          ),
+        ),
+        textAlign: TextAlign.center,
+      );
+    }
+    return RichAnswer(
+      text: card.answer,
+      style: Theme.of(context).textTheme.headlineSmall ?? const TextStyle(),
+    );
+  }
+
   Widget _face(BuildContext context, bool back) {
     final card = _queue[_index];
     final cs = Theme.of(context).colorScheme;
-    final questionSide = !back;
-    if (card.imagePath != null &&
-        (questionSide || card.occlusions.isNotEmpty)) {
+    final showImage = card.imagePath != null &&
+        (card.occlusions.isNotEmpty ||
+            card.imageSide == (back ? CardSide.back : CardSide.front));
+    if (showImage) {
       return _imageFace(context, card, back);
     }
     return Container(
@@ -216,22 +237,7 @@ class _StudyScreenState extends State<StudyScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           back
-              ? (Cloze.hasCloze(card.question)
-                  ? Text.rich(
-                      TextSpan(
-                        style: Theme.of(context).textTheme.headlineSmall,
-                        children: Cloze.revealSpans(
-                            card.question,
-                            card.clozeIndex,
-                            Theme.of(context).textTheme.headlineSmall ??
-                                const TextStyle()),
-                      ),
-                      textAlign: TextAlign.center,
-                    )
-                  : RichAnswer(
-                      text: card.answer,
-                      style: Theme.of(context).textTheme.headlineSmall ??
-                          const TextStyle()))
+              ? _answerContent(context, card)
               : Text(
                   Cloze.blanked(card.question, card.clozeIndex),
                   textAlign: TextAlign.center,
@@ -243,7 +249,8 @@ class _StudyScreenState extends State<StudyScreen>
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium),
           ],
-          if (back && card.audioPath != null) ...[
+          if (card.audioPath != null &&
+              card.audioSide == (back ? CardSide.back : CardSide.front)) ...[
             const SizedBox(height: 12),
             _audioControl(card),
           ],
@@ -300,12 +307,32 @@ class _StudyScreenState extends State<StudyScreen>
             ),
           ),
           const SizedBox(height: 12),
-          Text(card.question,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium),
-          if (back && card.audioPath != null) ...[
+          if (back && card.occlusions.isEmpty)
+            _answerContent(context, card)
+          else
+            Text(card.question,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium),
+          if (back && card.note.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(card.note,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium),
+          ],
+          if (card.audioPath != null &&
+              card.audioSide == (back ? CardSide.back : CardSide.front)) ...[
             const SizedBox(height: 12),
             _audioControl(card),
+          ],
+          if (card.tags.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final tag in card.tags)
+                  Chip(label: Text(tag), visualDensity: VisualDensity.compact),
+              ],
+            ),
           ],
         ],
       ),
