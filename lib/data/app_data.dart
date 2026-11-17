@@ -361,6 +361,8 @@ class AppData extends ChangeNotifier {
       String note = '',
       String? imagePath,
       String? audioPath,
+      CardSide? imageSide,
+      CardSide? audioSide,
       List<double>? occlusions,
       List<String>? tags}) {
     final deck = deckById(deckId);
@@ -372,6 +374,8 @@ class AppData extends ChangeNotifier {
         card.note = note;
         card.imagePath = imagePath;
         card.audioPath = audioPath;
+        if (imageSide != null) card.imageSide = imageSide;
+        if (audioSide != null) card.audioSide = audioSide;
         if (occlusions != null) card.occlusions = occlusions;
         if (tags != null) card.tags = tags;
         break;

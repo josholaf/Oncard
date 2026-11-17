@@ -22,6 +22,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private var mediaPlayer: MediaPlayer? = null
+    private var audioChannel: MethodChannel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,19 +45,22 @@ class MainActivity : FlutterActivity() {
         engine: io.flutter.embedding.engine.FlutterEngine
     ) {
         super.configureFlutterEngine(engine)
-        MethodChannel(engine.dartExecutor.binaryMessenger, "oncard/share")
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "getSelectedText" -> {
-                        result.success(pendingSelectedText)
-                        pendingSelectedText = null
-                    }
-                    "shareFile" -> shareFile(call, result)
-                    "playAudio" -> playAudio(call, result)
-                    "stopAudio" -> stopAudio(result)
-                    else -> result.notImplemented()
+        val channel = MethodChannel(engine.dartExecutor.binaryMessenger, "oncard/share")
+        audioChannel = channel
+        channel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getSelectedText" -> {
+                    result.success(pendingSelectedText)
+                    pendingSelectedText = null
                 }
+                "shareFile" -> shareFile(call, result)
+                "playAudio" -> playAudio(call, result)
+                "pauseAudio" -> pauseAudio(result)
+                "resumeAudio" -> resumeAudio(result)
+                "stopAudio" -> stopAudio(result)
+                else -> result.notImplemented()
             }
+        }
     }
 
     private fun shareFile(
@@ -97,13 +101,42 @@ class MainActivity : FlutterActivity() {
             mediaPlayer?.release()
             mediaPlayer = MediaPlayer().apply {
                 setDataSource(path)
-                setOnCompletionListener { it.release() }
+                setOnCompletionListener { completed ->
+                    if (mediaPlayer === completed) mediaPlayer = null
+                    completed.release()
+                    audioChannel?.invokeMethod("audioCompleted", null)
+                }
                 prepare()
                 start()
             }
             result.success(null)
         } catch (e: Exception) {
             result.error("play_failed", e.message, null)
+        }
+    }
+
+    private fun pauseAudio(result: MethodChannel.Result) {
+        try {
+            mediaPlayer?.let { player ->
+                if (player.isPlaying) player.pause()
+            }
+            result.success(null)
+        } catch (e: Exception) {
+            result.error("pause_failed", e.message, null)
+        }
+    }
+
+    private fun resumeAudio(result: MethodChannel.Result) {
+        try {
+            val player = mediaPlayer
+            if (player == null) {
+                result.error("no_audio", "No audio is loaded", null)
+                return
+            }
+            if (!player.isPlaying) player.start()
+            result.success(null)
+        } catch (e: Exception) {
+            result.error("resume_failed", e.message, null)
         }
     }
 
@@ -116,6 +149,7 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         mediaPlayer?.release()
         mediaPlayer = null
+        audioChannel = null
         super.onDestroy()
     }
 }

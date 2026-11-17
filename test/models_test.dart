@@ -13,6 +13,8 @@ void main() {
       note: 'Basics',
       tags: <String>['flutter', 'dart'],
       imagePath: '/tmp/x.png',
+      imageSide: CardSide.back,
+      audioSide: CardSide.front,
       due: 1730000000000,
       stability: 5.5,
       ease: 2.4,
@@ -26,6 +28,8 @@ void main() {
     expect(copy.note, card.note);
     expect(copy.tags, card.tags);
     expect(copy.imagePath, card.imagePath);
+    expect(copy.imageSide, CardSide.back);
+    expect(copy.audioSide, CardSide.front);
     expect(copy.due, card.due);
     expect(copy.stability, card.stability);
     expect(copy.ease, card.ease);
@@ -40,6 +44,8 @@ void main() {
       'answer': 'a',
       'mastery': 5,
     });
+    expect(legacy.imageSide, CardSide.front);
+    expect(legacy.audioSide, CardSide.back);
     expect(legacy.stability, 21);
     expect(legacy.mastered, isTrue);
     expect(legacy.masteryDots, 5);
