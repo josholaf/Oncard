@@ -82,7 +82,10 @@ void main() {
     await tester.pump();
     expect(calls, contains('resumeAudio'));
 
-    await tester.drag(find.text('Answer 1'), const Offset(160, 0));
+    await tester.drag(
+        find.byWidgetPredicate((widget) =>
+            widget is GestureDetector && widget.onHorizontalDragEnd != null),
+        const Offset(160, 0));
     await tester.pumpAndSettle();
     expect(find.text('Question 2'), findsOneWidget);
     expect(calls, contains('stopAudio'));
@@ -116,12 +119,18 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.drag(find.text('Question 1'), const Offset(160, 0));
+    await tester.drag(
+        find.byWidgetPredicate((widget) =>
+            widget is GestureDetector && widget.onHorizontalDragEnd != null),
+        const Offset(160, 0));
     await tester.pumpAndSettle();
     expect(find.text('Question 2'), findsOneWidget);
     expect(first.reps, 0);
 
-    await tester.drag(find.text('Question 2'), const Offset(160, 0));
+    await tester.drag(
+        find.byWidgetPredicate((widget) =>
+            widget is GestureDetector && widget.onHorizontalDragEnd != null),
+        const Offset(160, 0));
     await tester.pumpAndSettle();
     expect(find.text('2 skipped · not graded'), findsOneWidget);
     expect(find.text('Review skipped (2)'), findsOneWidget);
