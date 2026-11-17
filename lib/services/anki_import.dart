@@ -144,24 +144,42 @@ Future<AnkiImportOutcome> importAnkiPackageBytes(
       final back = _ankiFieldToText(backRaw);
       if (front.isEmpty && back.isEmpty) continue;
 
-      // Media: first image and first audio anywhere in the note.
+      // Keep the field side of each imported attachment.
       String? imagePath;
+      var imageSide = CardSide.front;
       String? audioPath;
-      for (final m in _imgRegex.allMatches(frontRaw + backRaw)) {
-        final src = mediaByName[m.group(1)];
-        if (src == null) continue;
-        final saved = await _copyMedia(src, imagesDir,
-            'anki_' + stamp.toString() + '_' + _safeName(m.group(1)!));
-        imagePath = saved;
-        break;
+      var audioSide = CardSide.back;
+      final mediaFields = <MapEntry<String, CardSide>>[
+        MapEntry(frontRaw, CardSide.front),
+        MapEntry(backRaw, CardSide.back),
+      ];
+      for (final field in mediaFields) {
+        for (final m in _imgRegex.allMatches(field.key)) {
+          final src = mediaByName[m.group(1)];
+          if (src == null) continue;
+          imagePath = await _copyMedia(
+            src,
+            imagesDir,
+            'anki_' + stamp.toString() + '_' + _safeName(m.group(1)!),
+          );
+          imageSide = field.value;
+          break;
+        }
+        if (imagePath != null) break;
       }
-      for (final m in _sndRegex.allMatches(frontRaw + backRaw)) {
-        final src = mediaByName[m.group(1)];
-        if (src == null) continue;
-        final saved = await _copyMedia(src, audioDir,
-            'anki_' + stamp.toString() + '_' + _safeName(m.group(1)!));
-        audioPath = saved;
-        break;
+      for (final field in mediaFields) {
+        for (final m in _sndRegex.allMatches(field.key)) {
+          final src = mediaByName[m.group(1)];
+          if (src == null) continue;
+          audioPath = await _copyMedia(
+            src,
+            audioDir,
+            'anki_' + stamp.toString() + '_' + _safeName(m.group(1)!),
+          );
+          audioSide = field.value;
+          break;
+        }
+        if (audioPath != null) break;
       }
 
       if (front.isEmpty) front = 'What does this card show?';
@@ -181,7 +199,9 @@ Future<AnkiImportOutcome> importAnkiPackageBytes(
         answer: back,
         tags: tags,
         imagePath: imagePath,
+        imageSide: imageSide,
         audioPath: audioPath,
+        audioSide: audioSide,
       );
 
       final deckId = _ensureDeck(data, deckName);
