@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -58,20 +59,35 @@ class _StudyScreenState extends State<StudyScreen>
       vsync: this, duration: const Duration(milliseconds: 400));
   late final List<Flashcard> _queue;
   final List<Grade> _grades = <Grade>[];
+  final List<Flashcard> _skippedCards = <Flashcard>[];
   int _index = 0;
+  int _skippedCount = 0;
   bool _showBack = false;
+  bool _reviewingSkipped = false;
+  bool _audioPlaying = false;
+  bool _audioStarted = false;
+  double _horizontalDrag = 0;
 
   @override
   void initState() {
     super.initState();
     _queue = widget.deck.cards.where((c) => c.isDue).toList()
       ..sort((a, b) => a.due.compareTo(b.due));
+    CardAudio.setOnCompleted(() {
+      if (!mounted) return;
+      setState(() {
+        _audioPlaying = false;
+        _audioStarted = false;
+      });
+    });
   }
 
   @override
   void dispose() {
     _flip.dispose();
     Tts.stop();
+    CardAudio.setOnCompleted(null);
+    unawaited(CardAudio.stop());
     super.dispose();
   }
 
@@ -94,7 +110,15 @@ class _StudyScreenState extends State<StudyScreen>
     setState(() => _grades.add(grade));
   }
 
-  void _next() {
+  Future<void> _stopAudio() async {
+    await CardAudio.stop();
+    _audioPlaying = false;
+    _audioStarted = false;
+  }
+
+  Future<void> _next({bool stopAudio = true}) async {
+    if (stopAudio) await _stopAudio();
+    if (!mounted) return;
     _flip.stop();
     _flip.value = 0;
     setState(() {
@@ -103,12 +127,63 @@ class _StudyScreenState extends State<StudyScreen>
     });
   }
 
-  void _gradeAndAdvance(Grade grade) {
+  Future<void> _skipCurrent() async {
+    if (_finished) return;
+    await _stopAudio();
+    if (!mounted || _finished) return;
+    _flip.stop();
+    _flip.value = 0;
+    setState(() {
+      _skippedCards.add(_queue[_index]);
+      _skippedCount += 1;
+      _showBack = false;
+      _index += 1;
+    });
+  }
+
+  void _reviewSkipped() {
+    if (_skippedCards.isEmpty) return;
+    _flip.stop();
+    _flip.value = 0;
+    setState(() {
+      _queue
+        ..clear()
+        ..addAll(_skippedCards);
+      _skippedCards.clear();
+      _index = 0;
+      _showBack = false;
+      _reviewingSkipped = true;
+    });
+  }
+
+  Future<void> _gradeAndAdvance(Grade grade) async {
     _advance(grade);
     if (grade == Grade.again) {
       _queue.add(_queue[_index]); // relearn later in the session
     }
-    Future<void>.delayed(const Duration(milliseconds: 700), _next);
+    await _stopAudio();
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    await _next(stopAudio: false);
+  }
+
+  Future<void> _toggleAudio(String path) async {
+    if (_audioPlaying) {
+      final paused = await CardAudio.pause();
+      if (!mounted) return;
+      if (paused) setState(() => _audioPlaying = false);
+      return;
+    }
+
+    final started = _audioStarted
+        ? await CardAudio.resume()
+        : await CardAudio.play(path);
+    if (!mounted) return;
+    if (started) {
+      setState(() {
+        _audioPlaying = true;
+        _audioStarted = true;
+      });
+    }
   }
 
   void _flipCard() {
@@ -172,11 +247,7 @@ class _StudyScreenState extends State<StudyScreen>
           ],
           if (back && card.audioPath != null) ...[
             const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () => CardAudio.play(card.audioPath!),
-              icon: const Icon(Icons.volume_up_rounded),
-              label: const Text('Play audio'),
-            ),
+            _audioControl(card),
           ],
           if (card.tags.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -234,8 +305,20 @@ class _StudyScreenState extends State<StudyScreen>
           Text(card.question,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium),
+          if (back && card.audioPath != null) ...[
+            const SizedBox(height: 12),
+            _audioControl(card),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _audioControl(Flashcard card) {
+    return OutlinedButton.icon(
+      onPressed: () => _toggleAudio(card.audioPath!),
+      icon: Icon(_audioPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
+      label: Text(_audioPlaying ? 'Pause audio' : 'Play audio'),
     );
   }
 
@@ -246,6 +329,15 @@ class _StudyScreenState extends State<StudyScreen>
         Expanded(
           child: GestureDetector(
             onTap: _flipCard,
+            onHorizontalDragStart: (_) => _horizontalDrag = 0,
+            onHorizontalDragUpdate: (details) =>
+                _horizontalDrag += details.delta.dx,
+            onHorizontalDragEnd: (details) {
+              final velocity = details.primaryVelocity ?? 0;
+              final shouldSkip = _horizontalDrag > 80 || velocity > 450;
+              _horizontalDrag = 0;
+              if (shouldSkip) _skipCurrent();
+            },
             child: AnimatedBuilder(
               animation: _flip,
               builder: (context, child) {
@@ -263,7 +355,14 @@ class _StudyScreenState extends State<StudyScreen>
             ),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 8),
+        Text(
+          'Swipe right to skip',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+        ),
+        const SizedBox(height: 12),
         if (!_showBack)
           SizedBox(
             width: double.infinity,
@@ -355,6 +454,8 @@ class _StudyScreenState extends State<StudyScreen>
     final cs = Theme.of(context).colorScheme;
     final hintParts = <String>['$_remaining left'];
     if (_againCount > 0) hintParts.add('$_againCount again');
+    if (_skippedCount > 0) hintParts.add('$_skippedCount skipped');
+    if (_reviewingSkipped) hintParts.insert(0, 'Skipped review');
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.deck.name),
@@ -418,7 +519,31 @@ class _StudyScreenState extends State<StudyScreen>
                   style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 8),
               Text('$_total cards reviewed · $accuracy% correct'),
+              if (_skippedCount > 0) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '$_skippedCount skipped · not graded',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                if (_skippedCards.isNotEmpty)
+                  Text(
+                    'Skipped cards remain due for review.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
+              ],
               const SizedBox(height: 24),
+              if (_skippedCards.isNotEmpty) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.tonalIcon(
+                    onPressed: _reviewSkipped,
+                    icon: const Icon(Icons.replay_rounded),
+                    label: Text('Review skipped (${_skippedCards.length})'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               FilledButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text('Done')),
