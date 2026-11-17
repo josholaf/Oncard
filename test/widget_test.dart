@@ -180,7 +180,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Back answer'), findsOneWidget);
-    expect(find.text('Image not available'), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
     expect(find.text('Play audio'), findsNothing);
   });
 
@@ -211,6 +211,8 @@ void main() {
     await tester.tap(find.byType(DropdownButton<CardSide>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Back').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Save changes'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Save changes'));
     await tester.pumpAndSettle();
