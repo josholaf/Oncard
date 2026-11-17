@@ -163,14 +163,6 @@ class StatsScreen extends StatelessWidget {
 
           Text('Study activity',
               style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text(
-            'Like GitHub’s graph — fill squares with small daily sessions, not cram days.',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: cs.onSurfaceVariant),
-          ),
           const SizedBox(height: 12),
           Card(
             child: Padding(
