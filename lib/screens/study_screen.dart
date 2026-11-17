@@ -93,13 +93,11 @@ class _StudyScreenState extends State<StudyScreen>
 
   bool get _finished => _index >= _queue.length;
 
-  int get _known =>
-      _grades.where((g) => g != Grade.again).length;
+  int get _known => _grades.where((g) => g != Grade.again).length;
 
   int get _total => _grades.length;
 
-  int get _againCount =>
-      _grades.where((g) => g == Grade.again).length;
+  int get _againCount => _grades.where((g) => g == Grade.again).length;
 
   int get _remaining =>
       (_queue.length - _index).clamp(0, _queue.length);
@@ -336,7 +334,7 @@ class _StudyScreenState extends State<StudyScreen>
               final velocity = details.primaryVelocity ?? 0;
               final shouldSkip = _horizontalDrag > 80 || velocity > 450;
               _horizontalDrag = 0;
-              if (shouldSkip) _skipCurrent();
+              if (shouldSkip) unawaited(_skipCurrent());
             },
             child: AnimatedBuilder(
               animation: _flip,
@@ -349,7 +347,9 @@ class _StudyScreenState extends State<StudyScreen>
                     ..setEntry(3, 2, 0.001)
                     ..rotateY(
                         showingFront ? angle : angle - math.pi),
-                  child: showingFront ? _face(context, false) : _face(context, true),
+                  child: showingFront
+                      ? _face(context, false)
+                      : _face(context, true),
                 );
               },
             ),
