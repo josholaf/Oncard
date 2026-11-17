@@ -454,7 +454,9 @@ class _StudyScreenState extends State<StudyScreen>
     final cs = Theme.of(context).colorScheme;
     final hintParts = <String>['$_remaining left'];
     if (_againCount > 0) hintParts.add('$_againCount again');
-    if (_skippedCards.isNotEmpty) hintParts.add('${_skippedCards.length} skipped');
+    if (_skippedCards.isNotEmpty) {
+      hintParts.add('${_skippedCards.length} skipped');
+    }
     if (_reviewingSkipped) hintParts.insert(0, 'Skipped review');
     return Scaffold(
       appBar: AppBar(
