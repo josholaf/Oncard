@@ -358,8 +358,8 @@ class _StudyScreenState extends State<StudyScreen>
             onHorizontalDragUpdate: (details) =>
                 _horizontalDrag += details.delta.dx,
             onHorizontalDragEnd: (details) {
-              final velocity = details.primaryVelocity ?? 0;
-              final shouldSkip = _horizontalDrag > 80 || velocity > 450;
+              final velocity = (details.primaryVelocity ?? 0).abs();
+              final shouldSkip = _horizontalDrag.abs() > 80 || velocity > 450;
               _horizontalDrag = 0;
               if (shouldSkip) unawaited(_skipCurrent());
             },
@@ -381,13 +381,6 @@ class _StudyScreenState extends State<StudyScreen>
               },
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Swipe right to skip',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
         ),
         const SizedBox(height: 12),
         if (!_showBack)

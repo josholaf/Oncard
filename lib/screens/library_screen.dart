@@ -283,7 +283,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 maxCrossAxisExtent: 220,
                                 mainAxisSpacing: 12,
                                 crossAxisSpacing: 12,
-                                childAspectRatio: 0.95),
+                                mainAxisExtent: 176),
                         itemCount: decks.length,
                         itemBuilder: (context, i) =>
                             _deckTile(context, data, decks[i], true),
@@ -318,8 +318,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   DeckAvatar(icon: deck.icon, colorIndex: deck.colorIndex, size: 48),
                   const SizedBox(height: 10),
                   Text(deck.name,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: 6),
                   Text(
