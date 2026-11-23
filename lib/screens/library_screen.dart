@@ -276,18 +276,35 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     subtitle:
                         'Try a different search, or create a new deck with the + button.')
                 : grid
-                    ? GridView.builder(
-                        padding: const EdgeInsets.all(20),
-                        gridDelegate:
-                            const SliverGridDelegateWithMaxCrossAxisExtent(
-                                maxCrossAxisExtent: 220,
-                                mainAxisSpacing: 12,
-                                crossAxisSpacing: 12,
-                                mainAxisExtent: 176),
-                        itemCount: decks.length,
-                        itemBuilder: (context, i) =>
-                            _deckTile(context, data, decks[i], true),
-                      )
+                    ? LayoutBuilder(builder: (context, box) {
+                        // Content-sized tiles: each card grows with its
+                        // text instead of clipping inside a fixed row
+                        // height (long names and due/new badge rows
+                        // overflowed the old fixed-extent grid).
+                        const gap = 12.0;
+                        const pad = 20.0;
+                        final cols =
+                            (box.maxWidth / 220).floor().clamp(2, 6);
+                        final tileW =
+                            (box.maxWidth - pad * 2 - gap * (cols - 1)) /
+                                cols;
+                        return SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: pad, vertical: 20),
+                          child: Wrap(
+                            spacing: gap,
+                            runSpacing: gap,
+                            children: [
+                              for (final deck in decks)
+                                SizedBox(
+                                  width: tileW,
+                                  child:
+                                      _deckTile(context, data, deck, true),
+                                ),
+                            ],
+                          ),
+                        );
+                      })
                     : ListView.builder(
                         padding: const EdgeInsets.all(20),
                         itemCount: decks.length,
