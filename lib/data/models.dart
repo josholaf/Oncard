@@ -1,3 +1,12 @@
+/// Where an attachment appears while studying a card.
+enum CardSide { front, back }
+
+CardSide _cardSideFromJson(dynamic value, CardSide fallback) =>
+    CardSide.values.firstWhere(
+      (side) => side.name == value,
+      orElse: () => fallback,
+    );
+
 /// Domain model for Oncard 2.0.
 ///
 /// Card content (question, answer, note, tags, image) is kept separate from
@@ -12,9 +21,11 @@ class Flashcard {
   String note;
   List<String> tags;
   String? imagePath;
+  CardSide imageSide;
 
   /// Optional audio attachment (pronunciation, lecture snippet).
   String? audioPath;
+  CardSide audioSide;
 
   /// Image occlusion regions: normalized x, y, w, h quadruples.
   List<double> occlusions;
@@ -39,7 +50,9 @@ class Flashcard {
     this.note = '',
     List<String>? tags,
     this.imagePath,
+    this.imageSide = CardSide.front,
     this.audioPath,
+    this.audioSide = CardSide.back,
     List<double>? occlusions,
     this.clozeIndex = 1,
     this.due = 0,
@@ -73,7 +86,9 @@ class Flashcard {
         'note': note,
         'tags': tags,
         if (imagePath != null) 'imagePath': imagePath,
+        'imageSide': imageSide.name,
         if (audioPath != null) 'audioPath': audioPath,
+        'audioSide': audioSide.name,
         if (occlusions.isNotEmpty) 'occlusions': occlusions,
         'due': due,
         'stability': stability,
@@ -104,7 +119,9 @@ class Flashcard {
               .toList() ??
           const <String>[],
       imagePath: json['imagePath'] as String?,
+      imageSide: _cardSideFromJson(json['imageSide'], CardSide.front),
       audioPath: json['audioPath'] as String?,
+      audioSide: _cardSideFromJson(json['audioSide'], CardSide.back),
       occlusions: (json['occlusions'] as List<dynamic>?)
               ?.map((e) => (e as num).toDouble())
               .toList() ??
