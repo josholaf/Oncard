@@ -287,6 +287,19 @@ class _BrowserScreenState extends State<BrowserScreen> {
                                   ? Icons.check_box_rounded
                                   : Icons.check_box_outline_blank_rounded)
                               : MasteryDots(mastery: card.masteryDots),
+                          trailing: card.tags.isEmpty
+                              ? null
+                              : SizedBox(
+                                  width: 112,
+                                  child: Wrap(
+                                    alignment: WrapAlignment.end,
+                                    spacing: 4,
+                                    runSpacing: 4,
+                                    children: [
+                                      for (final t in card.tags) TagPill(label: t),
+                                    ],
+                                  ),
+                                ),
                           title: Text(card.question,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis),
@@ -316,20 +329,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                                   _Badge('Lapsed', cs.surfaceContainerHighest,
                                       cs.onSurfaceVariant),
                                 ],
-                                if (card.tags.isNotEmpty) ...[
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(card.tags.join(', '),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                                color: cs.onSurfaceVariant)),
-                                  ),
-                                ],
-                              ],
+                                                              ],
                             ),
                           ),
                         ),

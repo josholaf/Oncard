@@ -230,3 +230,51 @@ class DeckAvatar extends StatelessWidget {
     );
   }
 }
+
+/// Stable color per tag: hash the tag into the shared palette so the
+/// same tag always reads as the same color, on every screen and run.
+Color tagColor(String tag) {
+  final hash = <int>[...tag.toLowerCase().trim()]
+      .fold(7, (h, c) => (h * 31 + c) & 0x7fffffff);
+  return deckPalette[hash % deckPalette.length];
+}
+
+/// Darkens a tint so pill text stays readable on white surfaces in
+/// light mode.
+Color darkenForLight(Color c, [double amount = 0.14]) {
+  final hsl = HSLColor.fromColor(c);
+  return hsl
+      .withLightness((hsl.lightness - amount).clamp(0.0, 1.0))
+      .toColor();
+}
+
+/// Rounded tag pill, color-coded by tag, in the spirit of the
+/// Due/New badges but sized to sit quietly in a card's corner.
+class TagPill extends StatelessWidget {
+  final String label;
+  const TagPill({super.key, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final base = tagColor(label);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final fg = dark ? lightenForDark(base, 0.26) : darkenForLight(base);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: base.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: fg,
+        ),
+      ),
+    );
+  }
+}
