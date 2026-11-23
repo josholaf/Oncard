@@ -357,9 +357,12 @@ class _StudyScreenState extends State<StudyScreen>
             onHorizontalDragStart: (_) => _horizontalDrag = 0,
             onHorizontalDragUpdate: (details) =>
                 _horizontalDrag += details.delta.dx,
+            // Both directions skip: left-to-right and right-to-left
+            // are handled identically, with no on-screen hint text.
             onHorizontalDragEnd: (details) {
               final velocity = (details.primaryVelocity ?? 0).abs();
-              final shouldSkip = _horizontalDrag.abs() > 80 || velocity > 450;
+              final shouldSkip =
+                  _horizontalDrag.abs() > 60 || velocity > 350;
               _horizontalDrag = 0;
               if (shouldSkip) unawaited(_skipCurrent());
             },
