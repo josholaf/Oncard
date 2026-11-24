@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.15+16
+
+- Color-coded tag pills on cards (stable color per tag)
+- Content-sized grid deck tiles
+- Lower swipe-skip threshold and two-way swipe skip
+- Grid tile overflow fix; swipe hint label removed
+
 ## 2.0.1+12
 
 - Accessibility: semantics labels on mastery dots, badges, empty states, stats and heatmap
