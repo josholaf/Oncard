@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 
 import 'lucide_icons.dart';
 import 'theme.dart';
@@ -234,8 +233,7 @@ class DeckAvatar extends StatelessWidget {
 /// Stable color per tag: hash the tag into the shared palette so the
 /// same tag always reads as the same color, on every screen and run.
 Color tagColor(String tag) {
-  final hash = <int>[...tag.toLowerCase().trim()]
-      .fold(7, (h, c) => (h * 31 + c) & 0x7fffffff);
+  final hash = tag.toLowerCase().trim().codeUnits.fold(7, (h, c) => (h * 31 + c) & 0x7fffffff);
   return deckPalette[hash % deckPalette.length];
 }
 
