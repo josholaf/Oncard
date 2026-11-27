@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/app_data.dart';
+import '../data/reminder_settings.dart';
 import '../services/import_export.dart';
+import '../services/reminder_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -40,6 +42,38 @@ class SettingsScreen extends StatelessWidget {
     if (ok == true && context.mounted) {
       await restoreBackupFile(context, data);
     }
+  }
+
+  Future<void> _setReminderEnabled(
+      BuildContext context, AppData data, bool enabled) async {
+    if (!enabled) {
+      data.setReminder(data.reminder.copyWith(enabled: false));
+      await ReminderService.apply(data);
+      return;
+    }
+    final granted = await ReminderService.requestPermission();
+    if (!granted) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Notification permission is needed for reminders. Enable it in system settings.')));
+      }
+      return;
+    }
+    data.setReminder(data.reminder.copyWith(enabled: true));
+    await ReminderService.apply(data);
+  }
+
+  Future<void> _pickReminderTime(BuildContext context, AppData data) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime:
+          TimeOfDay(hour: data.reminder.hour, minute: data.reminder.minute),
+    );
+    if (picked == null) return;
+    data.setReminder(
+        data.reminder.copyWith(hour: picked.hour, minute: picked.minute));
+    await ReminderService.apply(data);
   }
 
   @override
@@ -82,6 +116,43 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   onTap: () =>
                       data.setTtsEnabled(!data.ttsEnabled),
+                ),
+              ],
+            ),
+          ),
+
+          _header(context, 'Reminders'),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Column(
+              children: [
+                ListTile(
+                  title: const Text('Daily revision reminder'),
+                  subtitle: const Text(
+                      'Remind me to revise my cards every day'),
+                  trailing: CupertinoSwitch(
+                    value: data.reminder.enabled,
+                    onChanged: (v) => _setReminderEnabled(context, data, v),
+                  ),
+                  onTap: () => _setReminderEnabled(
+                      context, data, !data.reminder.enabled),
+                ),
+                ListTile(
+                  title: const Text('Reminder time'),
+                  subtitle: Text(data.reminder.enabled
+                      ? 'Every day at ${data.reminder.hour.toString().padLeft(2, '0')}:${data.reminder.minute.toString().padLeft(2, '0')}'
+                      : 'Turn the reminder on to pick a time'),
+                  onTap: data.reminder.enabled
+                      ? () => _pickReminderTime(context, data)
+                      : null,
+                ),
+                ListTile(
+                  title: const Text('Send test notification'),
+                  subtitle: const Text(
+                      'Preview what the reminder looks like'),
+                  onTap: data.reminder.enabled
+                      ? () => ReminderService.showTest(data)
+                      : null,
                 ),
               ],
             ),

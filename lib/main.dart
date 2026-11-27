@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/app_data.dart';
 import 'services/home_widget_sync.dart';
+import 'services/reminder_service.dart';
 import 'screens/create_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/library_screen.dart';
@@ -13,11 +14,15 @@ import 'screens/onboarding_screen.dart';
 import 'screens/quick_add_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/stats_screen.dart';
+import 'screens/study_screen.dart';
 import 'ui/theme.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
+  await ReminderService.init();
   runApp(OncardApp(prefs: prefs));
 }
 
@@ -38,6 +43,11 @@ class _OncardAppState extends State<OncardApp> {
     // Keep the Android home-screen widget in sync with study data.
     _data.addListener(_syncHomeWidget);
     unawaited(updateHomeWidget(_data));
+    // Re-arm the daily reminder on every start, and handle a cold start
+    // that was launched by tapping a reminder notification.
+    unawaited(ReminderService.apply(_data));
+    ReminderService.onTap = _openDeckFromReminder;
+    unawaited(ReminderService.handleLaunch());
   }
 
   @override
@@ -48,6 +58,18 @@ class _OncardAppState extends State<OncardApp> {
 
   void _syncHomeWidget() {
     unawaited(updateHomeWidget(_data));
+  }
+
+  void _openDeckFromReminder(String deckId) {
+    final context = navigatorKey.currentContext;
+    if (context == null || !context.mounted) return;
+    final data = context.read<AppData>();
+    final deck = data.deckById(deckId) ?? data.nextDeckToStudy;
+    if (deck == null || deck.cards.isEmpty) return;
+    Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+            builder: (_) => StudyScreen(deck: deck, mode: StudyMode.flip)));
   }
 
   @override
@@ -61,6 +83,7 @@ class _OncardAppState extends State<OncardApp> {
           return MaterialApp(
             title: 'Oncard',
             debugShowCheckedModeBanner: false,
+            navigatorKey: navigatorKey,
             theme: light,
             darkTheme: dark,
             themeMode: data.themeMode,
