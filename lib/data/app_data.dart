@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'models.dart';
+import 'reminder_settings.dart';
 import 'sample_decks.dart';
 import 'scheduler.dart';
 
@@ -48,6 +49,9 @@ class AppData extends ChangeNotifier {
   int lastFreezeEarnedAt = 0;
 
   /// Library view style, remembered between sessions.
+  /// Daily revision reminder configuration.
+  ReminderSettings reminder = const ReminderSettings();
+
   bool libraryGrid = false;
   String librarySort = 'recent';
   bool libraryFavoritesOnly = false;
@@ -84,6 +88,8 @@ class AppData extends ChangeNotifier {
     dailyGoal = _prefs.getInt('oncard.goal') ?? 20;
     ttsEnabled = _prefs.getBool('oncard.tts') ?? false;
     freezes = (_prefs.getInt('oncard.freezes') ?? 0).clamp(0, kMaxStreakFreezes);
+    reminder = ReminderSettings.fromJsonString(
+        _prefs.getString('oncard.reminder') ?? '');
     libraryGrid = _prefs.getBool('oncard.libraryGrid') ?? false;
     librarySort = _prefs.getString('oncard.librarySort') ?? 'recent';
     libraryFavoritesOnly = _prefs.getBool('oncard.libraryFav') ?? false;
@@ -154,6 +160,12 @@ class AppData extends ChangeNotifier {
   void setTtsEnabled(bool enabled) {
     ttsEnabled = enabled;
     _prefs.setBool('oncard.tts', enabled);
+    notifyListeners();
+  }
+
+  void setReminder(ReminderSettings value) {
+    reminder = value;
+    _prefs.setString('oncard.reminder', jsonEncode(value.toJson()));
     notifyListeners();
   }
 

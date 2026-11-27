@@ -66,6 +66,9 @@ jobs:
       - name: Wire home-screen widget
         run: python3 scripts/setup_widgets.py
 
+      - name: Wire revision reminder permissions
+        run: python3 scripts/setup_notifications.py
+
       - name: Render app icon from logo.svg
         run: |
           # Retry: runner apt mirrors occasionally fail DNS resolution.
