@@ -1,7 +1,8 @@
+successfully downloaded text file (SHA: 577947f6a59bd5a3609044fd4e025b0013986fc0)
 name: oncard
 description: oncard — Study smarter, remember longer. Beautiful offline-first flashcard app for medicine, languages, programming and more.
 publish_to: 'none'
-version: 2.0.14+15
+version: 2.0.15+16
 
 environment:
   sdk: ^3.5.0
