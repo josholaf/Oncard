@@ -60,6 +60,19 @@ jobs:
           grep -q 'minSdk = 23' android/app/build.gradle || (echo 'minSdk patch failed' && exit 1)
           grep -q 'gradle-8.9' android/gradle/wrapper/gradle-wrapper.properties || (echo 'gradle patch failed' && exit 1)
 
+      - name: Enable core library desugaring for notifications
+        # flutter_local_notifications requires desugaring on the app module.
+        run: |
+          # Enable in compileOptions (Groovy DSL from flutter create)
+          sed -i '/compileOptions {/a\        coreLibraryDesugaringEnabled true' android/app/build.gradle
+          # Ensure Java 8 compat is present (usually already is)
+          grep -q 'sourceCompatibility' android/app/build.gradle || sed -i '/compileOptions {/a\        sourceCompatibility JavaVersion.VERSION_1_8\n        targetCompatibility JavaVersion.VERSION_1_8' android/app/build.gradle
+          # Add desugar dependency at end of dependencies block or file
+          if ! grep -q 'desugar_jdk_libs' android/app/build.gradle; then
+            echo "dependencies { coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4' }" >> android/app/build.gradle
+          fi
+          grep -q 'coreLibraryDesugaringEnabled true' android/app/build.gradle || (echo 'desugar enable failed' && exit 1)
+
       - name: Wire text-selection quick add
         run: python3 scripts/setup_process_text.py
 
@@ -136,4 +149,3 @@ jobs:
           if [ -f Oncard-Play.aab ]; then
             gh release upload "$VERSION" Oncard-Play.aab --clobber
           fi
-
