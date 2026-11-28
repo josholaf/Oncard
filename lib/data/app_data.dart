@@ -52,6 +52,10 @@ class AppData extends ChangeNotifier {
   /// Daily revision reminder configuration.
   ReminderSettings reminder = const ReminderSettings();
 
+  /// Study reveal mode: the answer appears under the question on a dark
+  /// card instead of the flip animation.
+  bool revealAnswerButton = true;
+
   bool libraryGrid = false;
   String librarySort = 'recent';
   bool libraryFavoritesOnly = false;
@@ -90,6 +94,7 @@ class AppData extends ChangeNotifier {
     freezes = (_prefs.getInt('oncard.freezes') ?? 0).clamp(0, kMaxStreakFreezes);
     reminder = ReminderSettings.fromJsonString(
         _prefs.getString('oncard.reminder') ?? '');
+    revealAnswerButton = _prefs.getBool('oncard.reveal') ?? true;
     libraryGrid = _prefs.getBool('oncard.libraryGrid') ?? false;
     librarySort = _prefs.getString('oncard.librarySort') ?? 'recent';
     libraryFavoritesOnly = _prefs.getBool('oncard.libraryFav') ?? false;
@@ -160,6 +165,12 @@ class AppData extends ChangeNotifier {
   void setTtsEnabled(bool enabled) {
     ttsEnabled = enabled;
     _prefs.setBool('oncard.tts', enabled);
+    notifyListeners();
+  }
+
+  void setRevealAnswerButton(bool enabled) {
+    revealAnswerButton = enabled;
+    _prefs.setBool('oncard.reveal', enabled);
     notifyListeners();
   }
 

@@ -117,6 +117,17 @@ class SettingsScreen extends StatelessWidget {
                   onTap: () =>
                       data.setTtsEnabled(!data.ttsEnabled),
                 ),
+                ListTile(
+                  title: const Text('Show answer under question'),
+                  subtitle: const Text(
+                      'Reveal the answer below the question on a dark 3D card instead of flipping'),
+                  trailing: CupertinoSwitch(
+                    value: data.revealAnswerButton,
+                    onChanged: data.setRevealAnswerButton,
+                  ),
+                  onTap: () => data.setRevealAnswerButton(
+                      !data.revealAnswerButton),
+                ),
               ],
             ),
           ),
