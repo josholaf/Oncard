@@ -210,7 +210,11 @@ void main() {
 
     await tester.tap(find.byType(DropdownButton<CardSide>));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Back').last);
+    await tester.tap(find
+        .descendant(
+            of: find.byType(DropdownMenuItem<CardSide>),
+            matching: find.text('Back'))
+        .last);
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
         find.text('Save changes'), 400,

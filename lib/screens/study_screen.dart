@@ -268,6 +268,11 @@ class _StudyScreenState extends State<StudyScreen>
                 .headlineSmall
                 ?.copyWith(color: _cardText),
           ),
+          if (card.audioPath != null &&
+              card.audioSide == CardSide.front) ...[
+            const SizedBox(height: 12),
+            _audioControl(card),
+          ],
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 250),
             sizeCurve: Curves.easeOutCubic,
@@ -324,7 +329,8 @@ class _StudyScreenState extends State<StudyScreen>
                           .bodyMedium
                           ?.copyWith(color: _cardMuted)),
                 ],
-                if (card.audioPath != null) ...[
+                if (card.audioPath != null &&
+                    card.audioSide == CardSide.back) ...[
                   const SizedBox(height: 12),
                   _audioControl(card),
                 ],
