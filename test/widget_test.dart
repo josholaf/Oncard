@@ -208,7 +208,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(DropdownButton<CardSide>));
+    // Image attachment tile is the first DropdownButton<CardSide>
+    await tester.tap(find.byType(DropdownButton<CardSide>).first);
     await tester.pumpAndSettle();
     await tester.tap(find
         .descendant(
