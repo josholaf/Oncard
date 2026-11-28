@@ -312,7 +312,8 @@ class _StudyScreenState extends State<StudyScreen>
                     style: Theme.of(context)
                             .textTheme
                             .headlineSmall
-                            ?.copyWith(color: _cardText),
+                            ?.copyWith(color: _cardText) ??
+                        const TextStyle(),
                   ),
                 if (card.note.isNotEmpty) ...[
                   const SizedBox(height: 12),

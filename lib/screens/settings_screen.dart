@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/app_data.dart';
-import '../data/reminder_settings.dart';
 import '../services/import_export.dart';
 import '../services/reminder_service.dart';
 
