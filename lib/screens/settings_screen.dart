@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/app_data.dart';
-import '../data/reminder_settings.dart';
 import '../services/import_export.dart';
 import '../services/reminder_service.dart';
 
@@ -116,6 +115,17 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   onTap: () =>
                       data.setTtsEnabled(!data.ttsEnabled),
+                ),
+                ListTile(
+                  title: const Text('Show answer under question'),
+                  subtitle: const Text(
+                      'Reveal the answer below the question on a dark 3D card instead of flipping'),
+                  trailing: CupertinoSwitch(
+                    value: data.revealAnswerButton,
+                    onChanged: data.setRevealAnswerButton,
+                  ),
+                  onTap: () => data.setRevealAnswerButton(
+                      !data.revealAnswerButton),
                 ),
               ],
             ),

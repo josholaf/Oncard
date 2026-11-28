@@ -55,6 +55,7 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
     _audioSide = widget.card?.audioSide ?? CardSide.back;
     _lastAnswerText = _answer.text;
     _answer.addListener(_autoContinueList);
+    _answerFocus.addListener(_onAnswerFocus);
   }
 
   @override
@@ -67,6 +68,83 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
     _note.dispose();
     _tags.dispose();
     super.dispose();
+  }
+
+  void _onAnswerFocus() {
+    if (mounted) setState(() {});
+  }
+
+  /// Rich-text toolbar for the back side. Sits directly above the keyboard
+  /// while the back field is focused, like the reference editor.
+  Widget _floatingToolbar() {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: cs.surface,
+      elevation: 8,
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 52,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              children: [
+                IconButton(
+                  tooltip: 'Cloze: blank the selected text',
+                  icon: const Icon(Icons.visibility_off_rounded),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _wrapCloze,
+                ),
+                _formatButton(Icons.format_bold_rounded, 'Bold',
+                    () => RichMarkup.toggleWrap(_answer, '**', '**')),
+                _formatButton(Icons.format_italic_rounded, 'Italic',
+                    () => RichMarkup.toggleWrap(_answer, '*', '*')),
+                _formatButton(Icons.format_underline_rounded, 'Underline',
+                    () => RichMarkup.toggleWrap(_answer, '__', '__')),
+                _formatButton(Icons.format_list_bulleted_rounded, 'Bullet list',
+                    () => _toggleLinePrefix('- ')),
+                _formatButton(Icons.format_list_numbered_rounded, 'Numbered list',
+                    () => _toggleLinePrefix('1. ')),
+                _formatButton(Icons.format_indent_decrease_rounded,
+                    'Indent backward', () => _indentLine(-1)),
+                _formatButton(Icons.format_indent_increase_rounded,
+                    'Indent forward', () => _indentLine(1)),
+                PopupMenuButton<String>(
+                  tooltip: 'Highlight color',
+                  icon: const Icon(Icons.highlight_rounded),
+                  onSelected: (name) {
+                    RichMarkup.toggleWrap(
+                        _answer, name == 'amber' ? '==' : '==$name:', '==');
+                    FocusScope.of(context).requestFocus(_answerFocus);
+                  },
+                  itemBuilder: (_) => [
+                    for (final entry in _highlightColors.entries)
+                      PopupMenuItem(
+                        value: entry.key,
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 14,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: entry.value,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(entry.key),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _pickImage() async {
@@ -473,7 +551,18 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
             );
       }
     }
+    final wasEditing = _isEditing;
+    final messenger = ScaffoldMessenger.of(context);
     Navigator.pop(context);
+    if (!wasEditing) {
+      messenger.showSnackBar(const SnackBar(
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        content: _CardCreatedToast(),
+      ));
+    }
   }
 
   /// Wraps the question's current selection in the next cloze marker.
@@ -533,62 +622,101 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
         : _answer.text;
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Preview'),
-        scrollable: true,
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(hasCloze ? Cloze.blanked(_question.text, group) : _question.text,
-                style: Theme.of(ctx).textTheme.titleMedium),
-            const SizedBox(height: 12),
-            if (_imagePath != null) ...[
-              Text('Image · ${_sideLabel(_imageSide)}',
-                  style: Theme.of(ctx).textTheme.labelMedium),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(File(_imagePath!),
-                    height: 140,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink()),
-              ),
-            ],
-            if (_audioPath != null) ...[
-              Text('Audio · ${_sideLabel(_audioSide)}',
-                  style: Theme.of(ctx).textTheme.labelMedium),
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: OutlinedButton.icon(
-                  onPressed: () => CardAudio.play(_audioPath!),
-                  icon: const Icon(Icons.volume_up_rounded),
-                  label: const Text('Play audio'),
-                ),
-              ),
-            ],
-            const Divider(height: 24),
-            RichAnswer(
-              text: answer,
-              style:
-                  Theme.of(ctx).textTheme.bodyLarge ?? const TextStyle(),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[Color(0xFF26272F), Color(0xFF0B0B0F)],
             ),
-          ],
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.4),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12)),
+            ],
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  hasCloze
+                      ? Cloze.blanked(_question.text, group)
+                      : _question.text,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(color: const Color(0xFFECEAF4)),
+                ),
+                const Divider(height: 28, color: Color(0x33FFFFFF)),
+                if (_imagePath != null) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(File(_imagePath!),
+                        height: 140,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                if (_audioPath != null) ...[
+                  OutlinedButton.icon(
+                    onPressed: () => CardAudio.play(_audioPath!),
+                    icon: const Icon(Icons.volume_up_rounded),
+                    label: const Text('Play audio'),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                RichAnswer(
+                  text: answer,
+                  style: Theme.of(ctx)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(color: const Color(0xFFECEAF4)) ??
+                      const TextStyle(),
+                ),
+                if (_note.text.trim().isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(_note.text.trim(),
+                      textAlign: TextAlign.center,
+                      style: Theme.of(ctx)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: const Color(0xFFB9B7C6))),
+                ],
+              ],
+            ),
+          ),
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close')),
-        ],
       ),
     );
   }
 
-  @override
+    @override
   Widget build(BuildContext context) {
     final data = context.watch<AppData>();
     return Scaffold(
-      appBar: AppBar(title: Text(_isEditing ? 'Edit card' : 'New card')),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Edit card' : 'New card'),
+        actions: [
+          IconButton(
+            tooltip: _isEditing ? 'Save changes' : 'Save card',
+            icon: const Icon(Icons.check_rounded),
+            onPressed: _save,
+          ),
+        ],
+      ),
+      bottomNavigationBar: _answerFocus.hasFocus ? _floatingToolbar() : null,
       body: Form(
         key: _formKey,
         child: ListView(
@@ -598,82 +726,25 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
               controller: _question,
               focusNode: _questionFocus,
               decoration: const InputDecoration(
-                  labelText: 'Question (front)',
+                  labelText: 'Front',
                   border: OutlineInputBorder(),
-                  hintText: 'Question'),
+                  hintText: 'Front'),
               validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Question is required' : null,
+                  (v == null || v.trim().isEmpty) ? 'Front is required' : null,
             ),
             const SizedBox(height: 16),
-            // Formatting toolbar: styles the answer's current selection.
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  IconButton(
-                    tooltip: 'Cloze: blank the selected text',
-                    icon: const Icon(Icons.visibility_off_rounded),
-                    visualDensity: VisualDensity.compact,
-                    onPressed: _wrapCloze,
-                  ),
-                  _formatButton(Icons.format_bold_rounded, 'Bold',
-                      () => RichMarkup.toggleWrap(_answer, '**', '**')),
-                  _formatButton(Icons.format_italic_rounded, 'Italic',
-                      () => RichMarkup.toggleWrap(_answer, '*', '*')),
-                  _formatButton(Icons.format_underline_rounded, 'Underline',
-                      () => RichMarkup.toggleWrap(_answer, '__', '__')),
-                  _formatButton(Icons.format_list_bulleted_rounded, 'Bullet list',
-                      () => _toggleLinePrefix('- ')),
-                  _formatButton(Icons.format_list_numbered_rounded, 'Numbered list',
-                      () => _toggleLinePrefix('1. ')),
-                  _formatButton(Icons.format_indent_decrease_rounded,
-                      'Indent backward', () => _indentLine(-1)),
-                  _formatButton(Icons.format_indent_increase_rounded,
-                      'Indent forward', () => _indentLine(1)),
-                  PopupMenuButton<String>(
-                  tooltip: 'Highlight color',
-                  icon: const Icon(Icons.highlight_rounded),
-                  onSelected: (name) {
-                    RichMarkup.toggleWrap(
-                        _answer, name == 'amber' ? '==' : '==$name:', '==');
-                    FocusScope.of(context).requestFocus(_answerFocus);
-                  },
-                  itemBuilder: (_) => [
-                    for (final entry in _highlightColors.entries)
-                      PopupMenuItem(
-                        value: entry.key,
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 14,
-                              height: 14,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: entry.value,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(entry.key),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
             TextFormField(
               controller: _answer,
               focusNode: _answerFocus,
               maxLines: 3,
               decoration: const InputDecoration(
-                  labelText: 'Answer (back)',
+                  labelText: 'Back',
                   border: OutlineInputBorder(),
-                  hintText: 'Answer'),
+                  hintText: 'Back'),
               validator: (v) =>
                   (v == null || v.trim().isEmpty) &&
                           !Cloze.hasCloze(_question.text)
-                      ? 'Answer is required, or add a cloze blank'
+                      ? 'Back is required, or add a cloze blank'
                       : null,
             ),
             const SizedBox(height: 16),
@@ -761,6 +832,39 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Green confirmation in a small dark 3D box (corner radius 16).
+class _CardCreatedToast extends StatelessWidget {
+  const _CardCreatedToast();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[Color(0xFF26272F), Color(0xFF0B0B0F)],
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+              color: Colors.black.withOpacity(0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 8)),
+          const BoxShadow(
+              color: Color(0x14FFFFFF), blurRadius: 0, offset: Offset(0, -1)),
+        ],
+      ),
+      child: const Text('Card created',
+          style: TextStyle(
+              color: Color(0xFF4ADE80),
+              fontWeight: FontWeight.w700,
+              fontSize: 14)),
     );
   }
 }

@@ -197,6 +197,171 @@ class _StudyScreenState extends State<StudyScreen>
     setState(() => _showBack = !_showBack);
   }
 
+  /// Reveal-mode: the answer appears under the question on one dark card.
+  void _revealAnswer() {
+    if (_showBack) return;
+    final card = _queue[_index];
+    if (context.read<AppData>().ttsEnabled && card.answer.isNotEmpty) {
+      Tts.speak(RichMarkup.stripMarkup(card.answer));
+    }
+    setState(() => _showBack = true);
+  }
+
+  static const Color _cardText = Color(0xFFECEAF4);
+  static const Color _cardMuted = Color(0xFFB9B7C6);
+
+  Widget _revealCard(BuildContext context, Flashcard card, bool revealed) {
+    final showFrontImage = card.imagePath != null &&
+        (card.occlusions.isNotEmpty || card.imageSide == CardSide.front);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[Color(0xFF26272F), Color(0xFF0B0B0F)],
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+              color: Colors.black.withOpacity(0.35),
+              blurRadius: 18,
+              offset: const Offset(0, 10)),
+          const BoxShadow(
+              color: Color(0x14FFFFFF), blurRadius: 0, offset: Offset(0, -1)),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (showFrontImage) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Stack(
+                fit: StackFit.passthrough,
+                children: [
+                  Image.file(cardFile(card.imagePath!),
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const SizedBox(
+                          height: 100,
+                          child: Center(
+                              child: Text('Image not available',
+                                  style: TextStyle(color: _cardMuted))))),
+                  if (card.occlusions.isNotEmpty)
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: OcclusionPainter(
+                            rects: card.occlusions, revealed: revealed),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          Text(
+            Cloze.blanked(card.question, card.clozeIndex),
+            textAlign: TextAlign.center,
+            style: Theme.of(context)
+                .textTheme
+                .headlineSmall
+                ?.copyWith(color: _cardText),
+          ),
+          if (card.audioPath != null &&
+              card.audioSide == CardSide.front) ...[
+            const SizedBox(height: 12),
+            _audioControl(card),
+          ],
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 250),
+            sizeCurve: Curves.easeOutCubic,
+            crossFadeState: revealed
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild: const SizedBox(width: double.infinity),
+            secondChild: Column(
+              children: [
+                const Divider(height: 24, color: Color(0x33FFFFFF)),
+                if (card.imagePath != null &&
+                    card.occlusions.isEmpty &&
+                    card.imageSide == CardSide.back) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.file(cardFile(card.imagePath!),
+                        fit: BoxFit.contain,
+                        height: 140,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (Cloze.hasCloze(card.question))
+                  Text.rich(
+                    TextSpan(
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(color: _cardText),
+                      children: Cloze.revealSpans(
+                        card.question,
+                        card.clozeIndex,
+                        Theme.of(context).textTheme.headlineSmall ??
+                            const TextStyle(),
+                      ),
+                    ),
+                    textAlign: TextAlign.center,
+                  )
+                else
+                  RichAnswer(
+                    text: card.answer,
+                    style: Theme.of(context)
+                            .textTheme
+                            .headlineSmall
+                            ?.copyWith(color: _cardText) ??
+                        const TextStyle(),
+                  ),
+                if (card.note.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(card.note,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: _cardMuted)),
+                ],
+                if (card.audioPath != null &&
+                    card.audioSide == CardSide.back) ...[
+                  const SizedBox(height: 12),
+                  _audioControl(card),
+                ],
+                if (card.tags.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      for (final t in card.tags)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0x1AFFFFFF),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(t,
+                              style: const TextStyle(
+                                  fontSize: 12, color: _cardMuted)),
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _answerContent(BuildContext context, Flashcard card) {
     if (Cloze.hasCloze(card.question)) {
       return Text.rich(
@@ -347,13 +512,13 @@ class _StudyScreenState extends State<StudyScreen>
     );
   }
 
-  Widget _flipMode(BuildContext context) {
+  Widget _flipMode(BuildContext context, bool revealMode) {
     final card = _queue[_index];
     return Column(
       children: [
         Expanded(
           child: GestureDetector(
-            onTap: _flipCard,
+            onTap: revealMode ? _revealAnswer : _flipCard,
             onHorizontalDragStart: (_) => _horizontalDrag = 0,
             onHorizontalDragUpdate: (details) =>
                 _horizontalDrag += details.delta.dx,
@@ -366,23 +531,25 @@ class _StudyScreenState extends State<StudyScreen>
               _horizontalDrag = 0;
               if (shouldSkip) unawaited(_skipCurrent());
             },
-            child: AnimatedBuilder(
-              animation: _flip,
-              builder: (context, child) {
-                final showingFront = _flip.value < 0.5;
-                final angle = _flip.value * math.pi;
-                return Transform(
-                  alignment: Alignment.center,
-                  transform: Matrix4.identity()
-                    ..setEntry(3, 2, 0.001)
-                    ..rotateY(
-                        showingFront ? angle : angle - math.pi),
-                  child: showingFront
-                      ? _face(context, false)
-                      : _face(context, true),
-                );
-              },
-            ),
+            child: revealMode
+                ? _revealCard(context, card, _showBack)
+                : AnimatedBuilder(
+                    animation: _flip,
+                    builder: (context, child) {
+                      final showingFront = _flip.value < 0.5;
+                      final angle = _flip.value * math.pi;
+                      return Transform(
+                        alignment: Alignment.center,
+                        transform: Matrix4.identity()
+                          ..setEntry(3, 2, 0.001)
+                          ..rotateY(
+                              showingFront ? angle : angle - math.pi),
+                        child: showingFront
+                            ? _face(context, false)
+                            : _face(context, true),
+                      );
+                    },
+                  ),
           ),
         ),
         const SizedBox(height: 12),
@@ -390,7 +557,7 @@ class _StudyScreenState extends State<StudyScreen>
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: _flipCard,
+              onPressed: revealMode ? _revealAnswer : _flipCard,
               icon: const Icon(Icons.visibility_rounded),
               label: const Text('Show answer'),
             ),
@@ -413,7 +580,7 @@ class _StudyScreenState extends State<StudyScreen>
                   context,
                   'Hard',
                   Scheduler.intervalLabel(card, Grade.hard),
-                  const Color(0xFFD99A42),
+                  const Color(0xFF8A6A2F),
                   () => _gradeAndAdvance(Grade.hard),
                 ),
               ),
@@ -423,7 +590,7 @@ class _StudyScreenState extends State<StudyScreen>
                   context,
                   'Good',
                   Scheduler.intervalLabel(card, Grade.good),
-                  const Color(0xFF39845B),
+                  const Color(0xFF2F6B4F),
                   () => _gradeAndAdvance(Grade.good),
                 ),
               ),
@@ -433,37 +600,31 @@ class _StudyScreenState extends State<StudyScreen>
                   context,
                   'Easy',
                   Scheduler.intervalLabel(card, Grade.easy),
-                  const Color(0xFF1565C0),
+                  const Color(0xFF2F5F8A),
                   () => _gradeAndAdvance(Grade.easy),
                 ),
               ),
             ],
           ),
-        if (widget.deck.cards.isEmpty) const SizedBox.shrink(),
       ],
     );
   }
 
-  Widget _gradeButton(BuildContext context, String label, String hint,
+  Widget _gradeButton(BuildContext context, String label, String interval,
       Color color, VoidCallback onPressed) {
     return FilledButton(
       style: FilledButton.styleFrom(
-        backgroundColor: color.withOpacity(0.14),
-        foregroundColor: color,
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 10),
       ),
       onPressed: onPressed,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(label,
-                maxLines: 1,
-                style: const TextStyle(fontWeight: FontWeight.w700)),
-            Text(hint, maxLines: 1, style: const TextStyle(fontSize: 11)),
-          ],
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(interval, style: const TextStyle(fontSize: 11)),
+        ],
       ),
     );
   }
@@ -521,7 +682,9 @@ class _StudyScreenState extends State<StudyScreen>
               ),
             ),
             const SizedBox(height: 12),
-            Expanded(child: _flipMode(context)),
+            Expanded(
+                child: _flipMode(
+                    context, context.watch<AppData>().revealAnswerButton)),
           ],
         ),
       ),
@@ -538,42 +701,22 @@ class _StudyScreenState extends State<StudyScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.celebration_rounded, size: 64),
-              const SizedBox(height: 16),
               Text('Session complete',
                   style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 8),
-              Text('$_total cards reviewed · $accuracy% correct'),
+              const SizedBox(height: 12),
+              Text('$_known / $_total known · $accuracy% accuracy',
+                  style: Theme.of(context).textTheme.titleMedium),
               if (_skippedTotal > 0) ...[
                 const SizedBox(height: 8),
-                Text(
-                  '$_skippedTotal skips during this session',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-              if (_skippedCards.isNotEmpty) ...[
-                Text(
-                  '${_skippedCards.length} still skipped · not graded',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                Text(
-                  'Skipped cards remain due for review.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                  textAlign: TextAlign.center,
+                Text('$_skippedTotal still skipped · not graded',
+                    style: Theme.of(context).textTheme.bodyMedium),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: _reviewSkipped,
+                  child: Text('Review skipped ($_skippedTotal)'),
                 ),
               ],
               const SizedBox(height: 24),
-              if (_skippedCards.isNotEmpty) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.tonalIcon(
-                    onPressed: _reviewSkipped,
-                    icon: const Icon(Icons.replay_rounded),
-                    label: Text('Review skipped (${_skippedCards.length})'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
               FilledButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text('Done')),

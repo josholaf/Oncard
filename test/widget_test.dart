@@ -46,6 +46,8 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final prefs = await SharedPreferences.getInstance();
     final data = AppData(prefs);
+    // Keep classic flip mode so existing study interactions stay stable.
+    data.revealAnswerButton = false;
     final first = Flashcard(
       id: 'audio-card',
       question: 'Question 1',
@@ -98,6 +100,7 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final prefs = await SharedPreferences.getInstance();
     final data = AppData(prefs);
+    data.revealAnswerButton = false;
     final first = Flashcard(
       id: 'first-card',
       question: 'Question 1',
@@ -150,6 +153,7 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final prefs = await SharedPreferences.getInstance();
     final data = AppData(prefs);
+    data.revealAnswerButton = false;
     final card = Flashcard(
       id: 'placed-attachments',
       question: 'Front prompt',
@@ -208,10 +212,20 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(DropdownButton<CardSide>));
+    // Scroll the image attachment into view if needed, then open the first
+    // CardSide dropdown (image placement; audio is second when present).
+    final imageDropdown = find.byType(DropdownButton<CardSide>).first;
+    await tester.ensureVisible(imageDropdown);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Back').last);
+    await tester.tap(imageDropdown);
     await tester.pumpAndSettle();
+
+    // Menu items live in an overlay route; pick the Back item by text.
+    final backItem = find.text('Back').last;
+    expect(backItem, findsOneWidget);
+    await tester.tap(backItem);
+    await tester.pumpAndSettle();
+
     await tester.scrollUntilVisible(
         find.text('Save changes'), 400,
         scrollable: find.byType(Scrollable).first);
